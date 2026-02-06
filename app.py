@@ -1,108 +1,138 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from fpdf import FPDF
+from datetime import datetime
+import tempfile
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(
-    page_title="AtivaGestão | Simulador",
-    page_icon="🐂",
-    layout="wide"
-)
+st.set_page_config(page_title="AtivaGestão | Simulador", page_icon="🐂", layout="wide")
 
-# --- CABEÇALHO ---
+# --- CLASSE DO PDF (LAYOUT) ---
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 16)
+        self.cell(0, 10, 'AtivaGestao - Relatorio Tecnico', 0, 1, 'C') # Sem acento para evitar erro
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, 'Gabriel Oliveira | Consultoria Zootecnica', 0, 0, 'C')
+
+def gerar_pdf(dados, resultados, conclusao):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    
+    # Função auxiliar para texto (remove acentos problemáticos no PDF simples)
+    def txt(t):
+        return t.encode('latin-1', 'replace').decode('latin-1')
+
+    pdf.cell(0, 10, txt(f"Data da Simulação: {datetime.now().strftime('%d/%m/%Y')}"), 0, 1)
+    pdf.ln(10)
+    
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, txt("1. Parâmetros do Lote"), 0, 1)
+    pdf.set_font("Arial", size=12)
+    for k, v in dados.items():
+        pdf.cell(0, 8, txt(f"- {k}: {v}"), 0, 1)
+    
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, txt("2. Resultado Financeiro"), 0, 1)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 8, txt(f"Custo Total: R$ {resultados['Custo']}"), 0, 1)
+    pdf.cell(0, 8, txt(f"Receita Bruta: R$ {resultados['Receita']}"), 0, 1)
+    
+    # Cor do Lucro
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 8, txt(f"LUCRO PROJETADO: R$ {resultados['Lucro']}"), 0, 1)
+    pdf.cell(0, 8, txt(f"ROI (Retorno): {resultados['ROI']}"), 0, 1)
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, txt("3. Parecer Técnico"), 0, 1)
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 8, txt(conclusao))
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- APP VISUAL (Igual ao anterior) ---
 st.title("🐂 AtivaGestão | Simulador de Lucro")
 st.markdown("---")
 
-# --- BARRA LATERAL (INPUTS) ---
 with st.sidebar:
     st.header("📝 Dados do Lote")
-    
     qtd_animais = st.number_input("Qtd de Animais", min_value=1, value=50)
     peso_entrada = st.number_input("Peso de Entrada (kg)", value=300.0)
-    
     st.subheader("💰 Mercado")
     valor_arroba_compra = st.number_input("Valor @ Compra (R$)", value=280.00)
     valor_arroba_venda = st.number_input("Valor @ Venda (R$)", value=310.00)
-    
     st.subheader("🍽️ Nutrição & Tempo")
     custo_dieta = st.number_input("Custo Dieta (R$/cab/dia)", value=12.50)
     dias_cocho = st.number_input("Dias de Cocho", value=90)
     gmd_esperado = st.number_input("GMD Esperado (kg/dia)", value=1.500, format="%.3f")
 
-# --- CÁLCULOS (A MÁGICA) ---
-# 1. Peso Final
+# Cálculos
 peso_final = peso_entrada + (gmd_esperado * dias_cocho)
 peso_final_arrobas = peso_final / 30
-
-# 2. Custos
-custo_boi_magro = (peso_entrada / 30) * valor_arroba_compra * qtd_animais
-custo_alimentar = custo_dieta * dias_cocho * qtd_animais
-custo_operacional = 0 # Pode adicionar depois se quiser
-custo_total = custo_boi_magro + custo_alimentar + custo_operacional
-
-# 3. Receita
+custo_total = ((peso_entrada / 30) * valor_arroba_compra * qtd_animais) + (custo_dieta * dias_cocho * qtd_animais)
 receita_bruta = peso_final_arrobas * valor_arroba_venda * qtd_animais
-
-# 4. Indicadores
 lucro_total = receita_bruta - custo_total
-lucro_por_cabeca = lucro_total / qtd_animais
 roi = (lucro_total / custo_total) * 100
 
-# --- EXIBIÇÃO DO DASHBOARD ---
-
-# Linha de Métricas (KPIs)
+# Exibição
 col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(label="Peso Final (Médio)", value=f"{peso_final:.1f} kg", delta=f"{peso_final_arrobas:.1f} @")
-
-with col2:
-    st.metric(label="Custo Total do Lote", value=f"R$ {custo_total:,.2f}")
-
-with col3:
-    st.metric(label="Receita Bruta", value=f"R$ {receita_bruta:,.2f}")
-
-with col4:
-    # Cor condicional para o lucro
-    st.metric(label="Lucro Projetado 💰", value=f"R$ {lucro_total:,.2f}", delta=f"{roi:.1f}% ROI")
+col1.metric("Peso Final", f"{peso_final:.1f} kg")
+col2.metric("Custo Total", f"R$ {custo_total:,.2f}")
+col3.metric("Receita", f"R$ {receita_bruta:,.2f}")
+col4.metric("Lucro", f"R$ {lucro_total:,.2f}", f"{roi:.1f}% ROI")
 
 st.markdown("---")
 
-# --- GRÁFICOS E ANÁLISE ---
-col_grafico, col_texto = st.columns([2, 1])
+# Gráfico
+dados_grafico = pd.DataFrame({
+    "Categoria": ["Investimento", "Retorno"],
+    "Valor": [custo_total, receita_bruta]
+})
+fig = px.bar(dados_grafico, x="Categoria", y="Valor", color="Categoria", 
+             color_discrete_sequence=["#ef5350", "#66bb6a"], text_auto='.2s')
+st.plotly_chart(fig, use_container_width=True)
 
-with col_grafico:
-    st.subheader("📊 Raio-X Financeiro")
-    
-    # Montando dados para o gráfico
-    dados_grafico = pd.DataFrame({
-        "Categoria": ["Investimento (Custos)", "Retorno (Receita)"],
-        "Valor": [custo_total, receita_bruta],
-        "Cor": ["#B22222", "#2E8B57"] # Vermelho e Verde
-    })
-    
-    fig = px.bar(dados_grafico, x="Categoria", y="Valor", text_auto='.2s', 
-                 color="Categoria", color_discrete_sequence=["#ef5350", "#66bb6a"])
-    fig.update_layout(showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+# Texto de Conclusão
+analise_texto = f"""
+Considerando o GMD de {gmd_esperado}kg/dia por {dias_cocho} dias.
+O ponto de equilíbrio (Break-even) é vender a arroba por R$ {(custo_total/qtd_animais)/(peso_final/30):.2f}.
+{'✅ Cenário LUCRATIVO.' if lucro_total > 0 else '🚨 Cenário de PREJUÍZO.'}
+"""
+st.info(analise_texto)
 
-with col_texto:
-    st.subheader("📋 Relatório Rápido")
-    st.info(f"""
-    **Resumo da Estratégia:**
-    
-    Para lucrar **R$ {lucro_por_cabeca:,.2f}** por cabeça, precisamos que o gado ganhe **{gmd_esperado}kg/dia** durante **{dias_cocho} dias**.
-    
-    O ponto de equilíbrio (Break-even) é vender a arroba por, no mínimo, **R$ {(custo_total/qtd_animais)/(peso_final/30):.2f}**.
-    
-    Abaixo disso, temos prejuízo.
-    """)
-    
-    if lucro_total > 0:
-        st.success("✅ Cenário VIÁVEL e LUCRATIVO.")
-    else:
-        st.error("🚨 Cenário de PREJUÍZO. Revise custos ou preço de venda.")
-
-# Rodapé
+# --- BOTÃO MÁGICO DE PDF ---
 st.markdown("---")
-st.caption("Desenvolvido por **Gabriel Oliveira | AtivaGestão** - Tecnologia Zootécnica")
+st.subheader("📄 Exportar Relatório")
+
+# Preparar dados para o PDF
+dados_pdf = {
+    "Qtd Animais": str(qtd_animais),
+    "Peso Entrada": f"{peso_entrada} kg",
+    "Valor @ Compra": f"R$ {valor_arroba_compra}",
+    "Valor @ Venda": f"R$ {valor_arroba_venda}",
+    "Dieta": f"R$ {custo_dieta}/dia",
+    "GMD": f"{gmd_esperado} kg/dia"
+}
+resultados_pdf = {
+    "Custo": f"{custo_total:,.2f}",
+    "Receita": f"{receita_bruta:,.2f}",
+    "Lucro": f"{lucro_total:,.2f}",
+    "ROI": f"{roi:.1f}%"
+}
+
+# Botão
+pdf_bytes = gerar_pdf(dados_pdf, resultados_pdf, analise_texto)
+st.download_button(
+    label="📥 Baixar Relatório em PDF",
+    data=pdf_bytes,
+    file_name="Relatorio_AtivaGestao.pdf",
+    mime="application/pdf"
+)
