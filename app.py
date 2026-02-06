@@ -25,36 +25,39 @@ def gerar_pdf(dados, resultados, conclusao):
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     
-    # Função auxiliar para texto (remove acentos problemáticos no PDF simples)
-    def txt(t):
+    # Função para limpar texto (remove emojis e acentos chatos)
+    def limpar(t):
+        # Substitui emojis por texto
+        t = t.replace("✅", "[SUCESSO]").replace("🚨", "[ALERTA]").replace("💰", "")
         return t.encode('latin-1', 'replace').decode('latin-1')
 
-    pdf.cell(0, 10, txt(f"Data da Simulação: {datetime.now().strftime('%d/%m/%Y')}"), 0, 1)
+    pdf.cell(0, 10, limpar(f"Data da Simulação: {datetime.now().strftime('%d/%m/%Y')}"), 0, 1)
     pdf.ln(10)
     
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, txt("1. Parâmetros do Lote"), 0, 1)
+    pdf.cell(0, 10, limpar("1. Parâmetros do Lote"), 0, 1)
     pdf.set_font("Arial", size=12)
     for k, v in dados.items():
-        pdf.cell(0, 8, txt(f"- {k}: {v}"), 0, 1)
+        pdf.cell(0, 8, limpar(f"- {k}: {v}"), 0, 1)
     
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, txt("2. Resultado Financeiro"), 0, 1)
+    pdf.cell(0, 10, limpar("2. Resultado Financeiro"), 0, 1)
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 8, txt(f"Custo Total: R$ {resultados['Custo']}"), 0, 1)
-    pdf.cell(0, 8, txt(f"Receita Bruta: R$ {resultados['Receita']}"), 0, 1)
+    pdf.cell(0, 8, limpar(f"Custo Total: R$ {resultados['Custo']}"), 0, 1)
+    pdf.cell(0, 8, limpar(f"Receita Bruta: R$ {resultados['Receita']}"), 0, 1)
     
-    # Cor do Lucro
+    # Destaque do Lucro
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 8, txt(f"LUCRO PROJETADO: R$ {resultados['Lucro']}"), 0, 1)
-    pdf.cell(0, 8, txt(f"ROI (Retorno): {resultados['ROI']}"), 0, 1)
+    pdf.cell(0, 8, limpar(f"LUCRO PROJETADO: R$ {resultados['Lucro']}"), 0, 1)
+    pdf.cell(0, 8, limpar(f"ROI (Retorno): {resultados['ROI']}"), 0, 1)
     
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, txt("3. Parecer Técnico"), 0, 1)
+    pdf.cell(0, 10, limpar("3. Parecer Técnico"), 0, 1)
     pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 8, txt(conclusao))
+    # Multi_cell para o texto longo da conclusão
+    pdf.multi_cell(0, 8, limpar(conclusao))
     
     return pdf.output(dest='S').encode('latin-1')
 
