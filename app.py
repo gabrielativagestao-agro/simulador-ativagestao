@@ -103,11 +103,18 @@ fig = px.bar(dados_grafico, x="Categoria", y="Valor", color="Categoria",
              color_discrete_sequence=["#ef5350", "#66bb6a"], text_auto='.2s')
 st.plotly_chart(fig, use_container_width=True)
 
-# Texto de Conclusão
+# Texto de Conclusão PROFISSIONAL
+break_even = (custo_total/qtd_animais)/(peso_final/30)
+
 analise_texto = f"""
-Considerando o GMD de {gmd_esperado}kg/dia por {dias_cocho} dias.
-O ponto de equilíbrio (Break-even) é vender a arroba por R$ {(custo_total/qtd_animais)/(peso_final/30):.2f}.
-{'✅ Cenário LUCRATIVO.' if lucro_total > 0 else '🚨 Cenário de PREJUÍZO.'}
+PREMISSAS ZOOTÉCNICAS:
+A viabilidade deste cenário depende da manutenção rigorosa de um Ganho Médio Diário (GMD) de {gmd_esperado} kg durante {dias_cocho} dias.
+
+ANÁLISE DE EQUILÍBRIO:
+Para não haver prejuízo (Break-even), a arroba deve ser vendida por, no mínimo, R$ {break_even:.2f}.
+
+CONCLUSÃO:
+{'[SUCESSO] Margem Líquida Positiva. Operação Viável.' if lucro_total > 0 else '[ALERTA] Margem Negativa. Risco de Prejuízo Iminente.'}
 """
 st.info(analise_texto)
 
